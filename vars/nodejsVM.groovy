@@ -5,18 +5,19 @@ def call(Map configMap){
                 label 'AGENT-1'
             }
         }
-        environment {
+        environment { 
             packageVersion = ''
-            // nexusURL = '172.31.83.22:8081' mentioned in pipelineGlobal
-
+            // can maintain in pipeline globals
+            //nexusURL = '172.31.5.95:8081'
         }
         options {
             timeout(time: 1, unit: 'HOURS')
             disableConcurrentBuilds()
-            ansiColor('xterm')
         }
         parameters {
-        
+            // string(name: 'PERSON', defaultValue: 'Mr Jenkins', description: 'Who should I say hello to?')
+
+            // text(name: 'BIOGRAPHY', defaultValue: '', description: 'Enter some information about the person')
 
             booleanParam(name: 'Deploy', defaultValue: false, description: 'Toggle this value')
 
@@ -24,6 +25,7 @@ def call(Map configMap){
 
             // password(name: 'PASSWORD', defaultValue: 'SECRET', description: 'Enter a password')
         }
+        // build
         stages {
             stage('Get the version') {
                 steps {
@@ -34,42 +36,43 @@ def call(Map configMap){
                     }
                 }
             }
-            stage('Install Dependencies') {
+            stage('Install dependencies') {
                 steps {
                     sh """
-                    npm install
+                        npm install
                     """
                 }
             }
             stage('Unit tests') {
                 steps {
                     sh """
-                    echo "unit tests will run here"
+                        echo "unit tests will run here"
                     """
                 }
             }
-            stage('Sonar scan') {
-                steps {
+            stage('Sonar Scan'){
+                steps{
                     sh """
-                        echo "sonar-scanner" 
-                    """ // just sonar-scaner if sonar server created
+                        echo "usually command here is sonar-scanner"
+                        echo "sonar scan will run here"
+                    """
                 }
             }
             stage('Build') {
                 steps {
                     sh """
-                    ls -la
-                    zip -q -r ${configMap.component}.zip ./* -x ".git" -x "*.zip"
-                    ls -ltr
+                        ls -la
+                        zip -q -r ${configMap.component}.zip ./* -x ".git" -x "*.zip"
+                        ls -ltr
                     """
                 }
             }
-            stage('publish Artifacts') {
+            stage('Publish Artifact') {
                 steps {
                     nexusArtifactUploader(
                         nexusVersion: 'nexus3',
                         protocol: 'http',
-                        nexusUrl: pipelineGlobal.nexusURL(),
+                        nexusUrl: pipelineGlobals.nexusURL(),
                         groupId: 'com.roboshop',
                         version: "${packageVersion}",
                         repository: "${configMap.component}",
@@ -85,18 +88,18 @@ def call(Map configMap){
             }
             stage('Deploy') {
                 when {
-                    expression {
-                        params.Deploy = true
+                    expression{
+                        params.Deploy
                     }
                 }
                 steps {
-                    script{
-                        def params = [
-                            string(name: 'version',value: "$packageVersion"),
-                            string(name: 'environment',value: "dev")
-                        ]
-                        build job: "../${configMap.component}-deploy", wait: true, parameters: params
-                    }
+                    script {
+                            def params = [
+                                string(name: 'version', value: "$packageVersion"),
+                                string(name: 'environment', value: "dev")
+                            ]
+                            build job: "../${configMap.component}-deploy", wait: true, parameters: params
+                        }
                 }
             }
         }
