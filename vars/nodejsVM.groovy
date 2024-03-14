@@ -35,6 +35,73 @@ def call(Map configMap){
             }
 
         }
+                stage('Install Dependencies') {
+            steps {
+                 sh """
+                 npm install
+                 """
+            }
+        }
+        stage('Unit tests') {
+            steps {
+                 sh """
+                 echo "unit tests will run here"
+                 """
+            }
+        }
+        stage('Sonar scan') {
+            steps {
+                 sh """
+                    echo "sonar-scanner" 
+                 """ // just sonar-scaner if sonar server created
+            }
+        }
+        stage('Build') {
+            steps {
+                sh """
+                ls -la
+                zip -q -r catalogue.zip ./* -x ".git" -x "*.zip"
+                ls -ltr
+                 """
+            }
+        }
+        stage('publish Artifacts') {
+            steps {
+                nexusArtifactUploader(
+                    nexusVersion: 'nexus3',
+                    protocol: 'http',
+                    nexusUrl: "${nexusURL}",
+                    groupId: 'com.roboshop',
+                    version: "${packageVersion}",
+                    repository: 'catalogue',
+                    credentialsId: 'nexus-auth',
+                    artifacts: [
+                        [artifactId: 'catalogue',
+                        classifier: '',
+                        file: 'catalogue.zip',
+                        type: 'zip']
+                    ]
+                )
+            }
+        }
+        stage('Deploy') {
+            when {
+                expression {
+                    params.Deploy = true
+                }
+                
+            }
+            steps {
+                script{
+                    def params = [
+                        string(name: 'version',value: "$packageVersion"),
+                        string(name: 'environment',value: "dev")
+                    ]
+                    build job: "catalogue-deploy", wait: true, parameters: params
+                }
+            }
+        }
+    }
         // post build
         post { 
             always { 
@@ -49,4 +116,3 @@ def call(Map configMap){
             }
         }
     }
-}
